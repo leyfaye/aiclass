@@ -37,11 +37,11 @@ with open(secrets_path, "r") as f:
 
 
 # secrets.toml 파일에서 gemini_api_key1 값 가져오기
-gemini_api_key1 = secrets["api_key1"]
+api_key = secrets["api_key"]
 
 
 # Gemini API 키 설정
-genai.configure(api_key=geminiapi_key1)
+genai.configure(api_key=api_key)
 
 
 # 핸드폰 사진 업로드 기능 추가
@@ -82,5 +82,3 @@ if uploaded_file is not None:
             st.error("업로드된 파일이 유효한 이미지 파일이 아닙니다. 다른 파일을 업로드해 주세요.")
 else:
     st.markdown("핸드폰 사진을 업로드하세요.")
-
-
