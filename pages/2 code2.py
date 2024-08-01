@@ -1,75 +1,86 @@
+import pathlib
 import textwrap
 import google.generativeai as genai
 import streamlit as st
-import pathlib
 import toml
-import re
+from PIL import Image, UnidentifiedImageError
+import io
 
-# secrets.toml 파일 경로
-secrets_path = pathlib.Path(__file__).parent.parent / ".streamlit/secrets.toml"
 
-# secrets.toml 파일 읽기with open(secrets_path, "r") as f:
-    secrets = toml.load(f)
+hide_github_icon = """
+    <style>
+    .css-1jc7ptx, .e1ewe7hr3, .viewerBadge_container__1QSob,
+    .styles_viewerBadge__1yB5_, .viewerBadge_link__1S137,
+    .viewerBadge_text__1JaDK{ display: none; }
+    #MainMenu{ visibility: hidden; }
+    footer { visibility: hidden; }
+    header { visibility: hidden; }
+    </style>
+"""
 
-# secrets.toml 파일에서 API 키 값 가져오기
-api_key = secrets.get("api_key")
+
+st.markdown(hide_github_icon, unsafe_allow_html=True)
+
 
 def to_markdown(text):
     text = text.replace('•', '*')
     return textwrap.indent(text, '> ', predicate=lambda _: True)
 
-# Function to extract image URLs from textdef extract_image_urls(text):
-    url_pattern = r'(https?://\S+\.(?:jpg|jpeg|png|gif|bmp))'
-    return re.findall(url_pattern, text)
 
-# few-shot 프롬프트 구성 함수 수정def try_generate_content(prompt):
-    # API 키를 설정
-    genai.configure(api_key=api_key)
-   
-    # 설정된 모델 변경
-    model = genai.GenerativeModel(model_name="gemini-1.0-pro",
-                                  generation_config={
-                                      "temperature": 0.9,
-                                      "top_p": 1,
-                                      "top_k": 1,
-                                      "max_output_tokens": 2048,
-                                  },
-                                  safety_settings=[
-                                      {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                      {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                      {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                      {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                                  ])
-    try:
-        # 콘텐츠 생성 시도
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        # 예외 발생시 None 반환
-        print(f"API 호출 실패: {e}")
-        return None
+# secrets.toml 파일 경로
+secrets_path = pathlib.Path(__file__).parent.parent / ".streamlit/secrets.toml"
 
-# 스트림릿 앱 인터페이스 구성
-st.title("Gemini test")
 
-# 사용자 입력 받기
-prompt = st.text_area("프롬프트를 입력하세요.")
+# secrets.toml 파일 읽기
+with open(secrets_path, "r") as f:
+    secrets = toml.load(f)
 
-if st.button("결과 생성"):
-    # API 키로 시도
-    response_text = try_generate_content(prompt)
-   
-    # 결과 출력
-    if response_text is not None:
-        st.markdown(to_markdown(response_text))
 
-        # Extract and display images
-        image_urls = extract_image_urls(response_text)
-        if image_urls:
-            st.write("### Images")
-            for url in image_urls:
-                st.image(url)
-        else:
-            st.write("No images found in the generated content.")
-    else:
-        st.error("API 호출에 실패했습니다. 나중에 다시 시도해주세요.")
+# secrets.toml 파일에서 gemini_api_key1 값 가져오기
+gemini_api_key1 = secrets["api_key1"]
+
+
+# Gemini API 키 설정
+genai.configure(api_key=geminiapi_key1)
+
+
+# 핸드폰 사진 업로드 기능 추가
+uploaded_file = st.file_uploader("핸드폰 사진 업로드")
+
+
+# 이미지가 업로드되었는지 확인
+if uploaded_file is not None:
+    with st.spinner("이미지를 분석중입니다. 잠시만 기다려주세요..."):
+        try:
+            # 이미지 바이트 문자열로 변환
+            img_bytes = uploaded_file.read()
+
+
+            # bytes 타입의 이미지 데이터를 PIL.Image.Image 객체로 변환
+            img = Image.open(io.BytesIO(img_bytes))
+
+
+            model = genai.GenerativeModel('gemini-1.5-flash')
+
+
+            # Generate content
+            response = model.generate_content([
+                "이 사진은 동물의 사진입니다. 동물의 이름을 최대한 추측해서 판별해주세요. "
+                "동물의 모습과 습성, 서식지 등을 학생에게 설명하듯이 자세히 한글로 설명해 주세요. "
+                "더불어 동물을 사랑하고 생명을 존중할 수 있도록 마지막에 이야기를 해주세요.", img
+            ])
+
+
+            # Resolve the response
+            response.resolve()
+
+
+            # 결과 표시
+            st.image(img)  # 업로드된 사진 출력
+            st.markdown(response.text)
+        except UnidentifiedImageError:
+            st.error("업로드된 파일이 유효한 이미지 파일이 아닙니다. 다른 파일을 업로드해 주세요.")
+else:
+    st.markdown("핸드폰 사진을 업로드하세요.")
+
+
